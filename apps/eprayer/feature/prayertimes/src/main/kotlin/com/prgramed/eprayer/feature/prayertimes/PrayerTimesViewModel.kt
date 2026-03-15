@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -32,10 +30,10 @@ class PrayerTimesViewModel @Inject constructor(
 
     private fun observePrayerTimes() {
         viewModelScope.launch {
-            val now = kotlinx.datetime.Instant.fromEpochMilliseconds(
-                java.lang.System.currentTimeMillis(),
+            val javaToday = java.time.LocalDate.now()
+            val today = kotlinx.datetime.LocalDate(
+                javaToday.year, javaToday.monthValue, javaToday.dayOfMonth,
             )
-            val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
             getPrayerTimesUseCase(today)
                 .catch { e ->
                     _uiState.update { it.copy(isLoading = false, error = e.message) }
@@ -58,9 +56,7 @@ class PrayerTimesViewModel @Inject constructor(
             while (true) {
                 val next = _uiState.value.nextPrayer
                 if (next != null) {
-                    val now = Instant.fromEpochMilliseconds(
-                        java.lang.System.currentTimeMillis(),
-                    )
+                    val now = Instant.fromEpochMilliseconds(System.currentTimeMillis())
                     val remaining = next.time - now
                     _uiState.update {
                         it.copy(timeRemaining = if (remaining.isPositive()) remaining else null)

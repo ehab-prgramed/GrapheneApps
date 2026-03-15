@@ -13,8 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 
 @HiltViewModel
@@ -94,10 +92,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     private suspend fun rescheduleNotifications() {
-        val now = kotlinx.datetime.Instant.fromEpochMilliseconds(
-            java.lang.System.currentTimeMillis(),
+        val javaToday = java.time.LocalDate.now()
+        val today = kotlinx.datetime.LocalDate(
+            javaToday.year, javaToday.monthValue, javaToday.dayOfMonth,
         )
-        val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
         schedulePrayerNotificationsUseCase(today)
     }
 }

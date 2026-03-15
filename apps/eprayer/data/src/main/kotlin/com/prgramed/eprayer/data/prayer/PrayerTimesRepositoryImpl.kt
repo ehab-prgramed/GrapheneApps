@@ -17,11 +17,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.time.Instant
 
 @Singleton
 class PrayerTimesRepositoryImpl @Inject constructor(
@@ -75,8 +72,8 @@ class PrayerTimesRepositoryImpl @Inject constructor(
         }
 
     override fun getNextPrayer(): Flow<PrayerTime?> {
-        val now = Instant.fromEpochMilliseconds(java.lang.System.currentTimeMillis())
-        val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val javaToday = java.time.LocalDate.now()
+        val today = LocalDate(javaToday.year, javaToday.monthValue, javaToday.dayOfMonth)
         return getPrayerTimes(today).map { it.nextPrayer }
     }
 

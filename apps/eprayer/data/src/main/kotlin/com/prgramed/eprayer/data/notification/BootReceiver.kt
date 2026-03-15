@@ -8,8 +8,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -24,10 +22,10 @@ class BootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val now = kotlin.time.Instant.fromEpochMilliseconds(
-                    java.lang.System.currentTimeMillis(),
+                val javaToday = java.time.LocalDate.now()
+                val today = kotlinx.datetime.LocalDate(
+                    javaToday.year, javaToday.monthValue, javaToday.dayOfMonth,
                 )
-                val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
                 schedulePrayerNotificationsUseCase(today)
             } finally {
                 pendingResult.finish()
