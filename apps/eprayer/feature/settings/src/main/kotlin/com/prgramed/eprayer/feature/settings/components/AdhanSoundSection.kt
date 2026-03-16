@@ -63,7 +63,9 @@ fun AdhanSoundSection(
     fun playPreview(sound: AdhanSound) {
         mediaPlayer?.release()
         val resName = adhanRawResName(sound) ?: return
-        val resId = context.resources.getIdentifier(resName, "raw", context.packageName)
+        // Raw resources are in the app module — use applicationInfo.packageName
+        val appPackage = context.applicationInfo.packageName
+        val resId = context.resources.getIdentifier(resName, "raw", appPackage)
         if (resId == 0) return
         val player = MediaPlayer.create(context, resId)
         player.setOnCompletionListener {
