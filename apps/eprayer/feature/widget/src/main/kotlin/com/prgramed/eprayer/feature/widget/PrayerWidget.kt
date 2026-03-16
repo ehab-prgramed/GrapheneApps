@@ -33,6 +33,7 @@ import com.batoulapps.adhan2.CalculationMethod
 import com.batoulapps.adhan2.Coordinates
 import com.batoulapps.adhan2.PrayerTimes
 import com.batoulapps.adhan2.data.DateComponents
+import com.prgramed.eprayer.data.widget.PrayerWidgetWorker
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -40,7 +41,7 @@ import java.util.Calendar
 class PrayerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = computePrayerTimes(context)
+        val data = loadData(context)
         val launchIntent = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?: Intent()
@@ -133,8 +134,46 @@ class PrayerWidget : GlanceAppWidget() {
         }
     }
 
+    private fun loadData(context: Context): WidgetData {
+        // Try worker cache first — it has correct user prefs (method, madhab, location)
+        val sp = context.getSharedPreferences(
+            PrayerWidgetWorker.PREFS_NAME, Context.MODE_PRIVATE,
+        )
+        val fajrMillis = sp.getLong(PrayerWidgetWorker.KEY_FAJR, 0L)
+        if (fajrMillis != 0L) {
+            return fromCache(sp)
+        }
+
+        // No cache yet — compute with GPS + defaults
+        return computeFallback(context)
+    }
+
+    private fun fromCache(sp: android.content.SharedPreferences): WidgetData {
+        val formatter = DateTimeFormatter.ofPattern("HH:mm")
+        val zone = ZoneId.systemDefault()
+
+        fun fmt(millis: Long): String =
+            java.time.Instant.ofEpochMilli(millis).atZone(zone).format(formatter)
+
+        val nowMillis = System.currentTimeMillis()
+        val all = listOf(
+            "Fajr" to sp.getLong(PrayerWidgetWorker.KEY_FAJR, 0L),
+            "Dhuhr" to sp.getLong(PrayerWidgetWorker.KEY_DHUHR, 0L),
+            "Asr" to sp.getLong(PrayerWidgetWorker.KEY_ASR, 0L),
+            "Maghrib" to sp.getLong(PrayerWidgetWorker.KEY_MAGHRIB, 0L),
+            "Isha" to sp.getLong(PrayerWidgetWorker.KEY_ISHA, 0L),
+        )
+        val next = all.firstOrNull { it.second > nowMillis } ?: all.first()
+
+        return WidgetData(
+            nextName = next.first,
+            nextTime = fmt(next.second),
+            prayers = all.map { PrayerInfo(it.first, fmt(it.second)) },
+        )
+    }
+
     @SuppressLint("MissingPermission")
-    private fun computePrayerTimes(context: Context): WidgetData {
+    private fun computeFallback(context: Context): WidgetData {
         val loc = try {
             val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
@@ -150,14 +189,15 @@ class PrayerWidget : GlanceAppWidget() {
         }
 
         val calendar = Calendar.getInstance()
-        val dateComponents = DateComponents(
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH) + 1,
-            calendar.get(Calendar.DAY_OF_MONTH),
+        val pt = PrayerTimes(
+            coordinates,
+            DateComponents(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH),
+            ),
+            CalculationMethod.MUSLIM_WORLD_LEAGUE.parameters,
         )
-
-        val params = CalculationMethod.MUSLIM_WORLD_LEAGUE.parameters
-        val pt = PrayerTimes(coordinates, dateComponents, params)
 
         val nowMillis = System.currentTimeMillis()
         val formatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -173,7 +213,6 @@ class PrayerWidget : GlanceAppWidget() {
             "Maghrib" to pt.maghrib.toEpochMilliseconds(),
             "Isha" to pt.isha.toEpochMilliseconds(),
         )
-
         val next = all.firstOrNull { it.second > nowMillis } ?: all.first()
 
         return WidgetData(

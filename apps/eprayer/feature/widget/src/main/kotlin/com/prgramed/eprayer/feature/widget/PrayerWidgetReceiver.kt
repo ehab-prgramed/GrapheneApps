@@ -1,5 +1,6 @@
 package com.prgramed.eprayer.feature.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -13,18 +14,20 @@ import java.util.concurrent.TimeUnit
 class PrayerWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = PrayerWidget()
 
-    override fun onEnabled(context: Context) {
-        super.onEnabled(context)
-        triggerImmediateRefresh(context)
-        schedulePeriodicWorker(context)
-    }
-
-    private fun triggerImmediateRefresh(context: Context) {
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        // Refresh data every time the widget updates
         val request = OneTimeWorkRequestBuilder<PrayerWidgetWorker>().build()
         WorkManager.getInstance(context).enqueue(request)
     }
 
-    private fun schedulePeriodicWorker(context: Context) {
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        // Schedule periodic refresh
         val workRequest = PeriodicWorkRequestBuilder<PrayerWidgetWorker>(
             30, TimeUnit.MINUTES,
         ).build()
