@@ -4,25 +4,31 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.prgramed.eprayer.feature.prayertimes.components.DayProgressIndicator
 import com.prgramed.eprayer.feature.prayertimes.components.NextPrayerBanner
 import com.prgramed.eprayer.feature.prayertimes.components.PrayerTimeCard
+
+private val Navy = Color(0xFF0F1B2D)
+private val Peach = Color(0xFFE8B98A)
 
 @Composable
 fun PrayerTimesScreen(
@@ -58,40 +64,49 @@ fun PrayerTimesScreen(
         }
     }
 
-    when {
-        uiState.isLoading -> {
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Navy),
+    ) {
+        when {
+            uiState.isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Peach)
+                }
             }
-        }
-        uiState.error != null -> {
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = uiState.error ?: "An error occurred",
-                    color = MaterialTheme.colorScheme.error,
-                )
+            uiState.error != null -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(text = uiState.error ?: "Error", color = Peach)
+                }
             }
-        }
-        else -> {
-            val prayerDay = uiState.prayerDay ?: return
-            LazyColumn(modifier = modifier.fillMaxSize()) {
-                val nextPrayer = uiState.nextPrayer
-                if (nextPrayer != null) {
-                    item {
-                        NextPrayerBanner(
-                            prayerTime = nextPrayer,
-                            timeRemaining = uiState.timeRemaining,
-                            cityName = uiState.cityName,
+            else -> {
+                val prayerDay = uiState.prayerDay ?: return
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    val nextPrayer = uiState.nextPrayer
+                    if (nextPrayer != null) {
+                        item {
+                            NextPrayerBanner(
+                                prayerTime = nextPrayer,
+                                timeRemaining = uiState.timeRemaining,
+                                cityName = uiState.cityName,
+                            )
+                        }
+                    }
+
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
+
+                    items(prayerDay.times) { prayerTime ->
+                        PrayerTimeCard(
+                            prayerTime = prayerTime,
+                            notificationEnabled = prayerTime.prayer.name in uiState.enabledNotifications,
+                            onNotificationToggle = {
+                                viewModel.togglePrayerNotification(prayerTime.prayer.name)
+                            },
                         )
                     }
-                }
 
-                item {
-                    DayProgressIndicator(prayerDay = prayerDay)
-                }
-
-                items(prayerDay.times) { prayerTime ->
-                    PrayerTimeCard(prayerTime = prayerTime)
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
         }

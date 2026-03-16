@@ -9,6 +9,9 @@ data class UserPreferences(
     val notificationsEnabled: Boolean = true,
     val madhab: MadhabType = MadhabType.SHAFI,
     val adhanSound: AdhanSound = AdhanSound.MOHAMMED_REFAAT,
+    val enabledPrayerNotifications: Set<String> = setOf(
+        "FAJR", "DHUHR", "ASR", "MAGHRIB", "ISHA",
+    ),
 )
 
 enum class LocationMode {

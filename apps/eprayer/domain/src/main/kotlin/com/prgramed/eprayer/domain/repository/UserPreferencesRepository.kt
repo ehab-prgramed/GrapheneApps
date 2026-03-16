@@ -15,4 +15,5 @@ interface UserPreferencesRepository {
     suspend fun updateMadhab(madhab: MadhabType)
     suspend fun updateNotificationsEnabled(enabled: Boolean)
     suspend fun updateAdhanSound(sound: AdhanSound)
+    suspend fun updatePrayerNotificationEnabled(prayer: String, enabled: Boolean)
 }

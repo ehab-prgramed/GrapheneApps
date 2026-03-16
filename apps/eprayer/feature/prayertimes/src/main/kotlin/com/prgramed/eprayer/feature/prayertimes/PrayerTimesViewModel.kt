@@ -3,6 +3,7 @@ package com.prgramed.eprayer.feature.prayertimes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.prgramed.eprayer.domain.repository.LocationRepository
+import com.prgramed.eprayer.domain.repository.UserPreferencesRepository
 import com.prgramed.eprayer.domain.usecase.GetPrayerTimesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -21,6 +22,7 @@ import kotlin.time.Instant
 class PrayerTimesViewModel @Inject constructor(
     private val getPrayerTimesUseCase: GetPrayerTimesUseCase,
     private val locationRepository: LocationRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PrayerTimesUiState())
@@ -30,6 +32,7 @@ class PrayerTimesViewModel @Inject constructor(
 
     init {
         startCountdown()
+        observePreferences()
     }
 
     fun onPermissionResult(granted: Boolean) {
@@ -38,8 +41,26 @@ class PrayerTimesViewModel @Inject constructor(
             observeCity()
         } else if (!granted) {
             _uiState.update {
-                it.copy(isLoading = false, error = "Location permission required to show prayer times")
+                it.copy(isLoading = false, error = "Location permission required")
             }
+        }
+    }
+
+    fun togglePrayerNotification(prayer: String) {
+        viewModelScope.launch {
+            val current = _uiState.value.enabledNotifications
+            val enabled = prayer !in current
+            userPreferencesRepository.updatePrayerNotificationEnabled(prayer, enabled)
+        }
+    }
+
+    private fun observePreferences() {
+        viewModelScope.launch {
+            userPreferencesRepository.getUserPreferences()
+                .catch { }
+                .collect { prefs ->
+                    _uiState.update { it.copy(enabledNotifications = prefs.enabledPrayerNotifications) }
+                }
         }
     }
 
@@ -69,7 +90,7 @@ class PrayerTimesViewModel @Inject constructor(
     private fun observeCity() {
         viewModelScope.launch {
             locationRepository.getCurrentLocation()
-                .catch { /* ignore */ }
+                .catch { }
                 .collect { location ->
                     _uiState.update { it.copy(cityName = location.cityName) }
                 }

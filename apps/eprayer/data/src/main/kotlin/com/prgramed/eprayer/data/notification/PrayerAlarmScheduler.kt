@@ -19,7 +19,7 @@ class PrayerAlarmScheduler @Inject constructor(
     private val alarmManager: AlarmManager
         get() = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    override fun scheduleAlarms(prayerDay: PrayerDay) {
+    override fun scheduleAlarms(prayerDay: PrayerDay, enabledPrayers: Set<String>) {
         cancelAllAlarms()
 
         val now = System.currentTimeMillis()
@@ -27,6 +27,7 @@ class PrayerAlarmScheduler @Inject constructor(
         prayerDay.times
             .filter { it.prayer != Prayer.SUNRISE }
             .filter { it.time.toEpochMilliseconds() > now }
+            .filter { enabledPrayers.isEmpty() || it.prayer.name in enabledPrayers }
             .forEach { prayerTime ->
                 val intent = Intent(context, PrayerAlarmReceiver::class.java).apply {
                     putExtra(PrayerAlarmReceiver.EXTRA_PRAYER_NAME, prayerTime.prayer.name)

@@ -1,107 +1,105 @@
 package com.prgramed.eprayer.feature.prayertimes.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Nightlight
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.grapheneapps.core.designsystem.theme.Gold
-import com.grapheneapps.core.designsystem.theme.MediumGreen
+import androidx.compose.ui.unit.sp
 import com.prgramed.eprayer.domain.model.Prayer
 import com.prgramed.eprayer.domain.model.PrayerTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+private val NavyCard = Color(0xFF162135)
+private val NavyBorder = Color(0xFF1E2F47)
+private val Peach = Color(0xFFE8B98A)
+private val TextMuted = Color(0xFF8899AA)
+
 @Composable
 fun PrayerTimeCard(
     prayerTime: PrayerTime,
+    notificationEnabled: Boolean,
+    onNotificationToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val displayName = prayerTime.prayer.name.lowercase().replaceFirstChar { it.uppercase() }
     val formattedTime = formatTime(prayerTime)
-    val icon = prayerIcon(prayerTime.prayer)
+    val isNext = prayerTime.isNext
+    val showBell = prayerTime.prayer != Prayer.SUNRISE
 
-    val bgColor = if (prayerTime.isNext) {
-        MediumGreen.copy(alpha = 0.12f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    val accentColor = if (prayerTime.isNext) Gold else MaterialTheme.colorScheme.onSurfaceVariant
+    val borderColor = if (isNext) Peach.copy(alpha = 0.6f) else NavyBorder
 
-    Row(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(bgColor)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = NavyCard,
+        border = BorderStroke(1.dp, borderColor),
     ) {
         Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(accentColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = displayName,
-                    tint = accentColor,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
             Text(
                 text = displayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (prayerTime.isNext) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 16.sp,
+                fontWeight = if (isNext) FontWeight.Bold else FontWeight.Normal,
+                color = if (isNext) Color.White else TextMuted,
             )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = formattedTime,
+                    fontSize = 16.sp,
+                    fontWeight = if (isNext) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isNext) Peach else Peach.copy(alpha = 0.7f),
+                )
+                if (showBell) {
+                    IconButton(
+                        onClick = onNotificationToggle,
+                        modifier = Modifier.size(24.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (notificationEnabled) {
+                                Icons.Default.Notifications
+                            } else {
+                                Icons.Default.NotificationsOff
+                            },
+                            contentDescription = "Toggle notification",
+                            tint = if (notificationEnabled) TextMuted else TextMuted.copy(alpha = 0.3f),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
         }
-        Text(
-            text = formattedTime,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (prayerTime.isNext) FontWeight.Bold else FontWeight.Normal,
-            color = if (prayerTime.isNext) Gold else MaterialTheme.colorScheme.onSurface,
-        )
     }
-}
-
-private fun prayerIcon(prayer: Prayer): ImageVector = when (prayer) {
-    Prayer.FAJR -> Icons.Default.DarkMode
-    Prayer.SUNRISE -> Icons.Default.WbSunny
-    Prayer.DHUHR -> Icons.Default.LightMode
-    Prayer.ASR -> Icons.Default.WbTwilight
-    Prayer.MAGHRIB -> Icons.Default.WbTwilight
-    Prayer.ISHA -> Icons.Default.Nightlight
 }
 
 private fun formatTime(prayerTime: PrayerTime): String {
     val instant = java.time.Instant.ofEpochMilli(prayerTime.time.toEpochMilliseconds())
     val zonedTime = instant.atZone(ZoneId.systemDefault())
-    return DateTimeFormatter.ofPattern("hh:mm a").format(zonedTime)
+    return DateTimeFormatter.ofPattern("HH:mm").format(zonedTime)
 }

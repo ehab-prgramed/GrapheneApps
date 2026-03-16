@@ -31,6 +31,7 @@ class UserPreferencesDataStore @Inject constructor(
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val MADHAB = stringPreferencesKey("madhab")
         val ADHAN_SOUND = stringPreferencesKey("adhan_sound")
+        val ENABLED_PRAYER_NOTIFICATIONS = stringPreferencesKey("enabled_prayer_notifications")
     }
 
     override fun getUserPreferences(): Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -51,6 +52,9 @@ class UserPreferencesDataStore @Inject constructor(
             adhanSound = prefs[Keys.ADHAN_SOUND]
                 ?.let { runCatching { AdhanSound.valueOf(it) }.getOrNull() }
                 ?: AdhanSound.MOHAMMED_REFAAT,
+            enabledPrayerNotifications = prefs[Keys.ENABLED_PRAYER_NOTIFICATIONS]
+                ?.split(",")?.filter { it.isNotBlank() }?.toSet()
+                ?: setOf("FAJR", "DHUHR", "ASR", "MAGHRIB", "ISHA"),
         )
     }
 
@@ -88,5 +92,15 @@ class UserPreferencesDataStore @Inject constructor(
 
     override suspend fun updateAdhanSound(sound: AdhanSound) {
         dataStore.edit { it[Keys.ADHAN_SOUND] = sound.name }
+    }
+
+    override suspend fun updatePrayerNotificationEnabled(prayer: String, enabled: Boolean) {
+        dataStore.edit { prefs ->
+            val current = prefs[Keys.ENABLED_PRAYER_NOTIFICATIONS]
+                ?.split(",")?.filter { it.isNotBlank() }?.toMutableSet()
+                ?: mutableSetOf("FAJR", "DHUHR", "ASR", "MAGHRIB", "ISHA")
+            if (enabled) current.add(prayer) else current.remove(prayer)
+            prefs[Keys.ENABLED_PRAYER_NOTIFICATIONS] = current.joinToString(",")
+        }
     }
 }

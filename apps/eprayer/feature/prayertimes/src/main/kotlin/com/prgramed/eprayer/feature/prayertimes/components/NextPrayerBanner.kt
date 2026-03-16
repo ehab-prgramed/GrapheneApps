@@ -2,28 +2,26 @@ package com.prgramed.eprayer.feature.prayertimes.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.grapheneapps.core.designsystem.theme.DarkGreen
-import com.grapheneapps.core.designsystem.theme.MediumGreen
-import com.grapheneapps.core.designsystem.theme.Seed
+import androidx.compose.ui.unit.sp
 import com.prgramed.eprayer.domain.model.PrayerTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlin.time.Duration
+
+private val Peach = Color(0xFFE8B98A)
+private val TextMuted = Color(0xFF8899AA)
+private val PillBg = Color(0xFF1A2744)
 
 @Composable
 fun NextPrayerBanner(
@@ -33,49 +31,52 @@ fun NextPrayerBanner(
     modifier: Modifier = Modifier,
 ) {
     val displayName = prayerTime.prayer.name.lowercase().replaceFirstChar { it.uppercase() }
-    val formattedTime = formatPrayerTime(prayerTime)
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.linearGradient(colors = listOf(Seed, DarkGreen, MediumGreen)),
-            ),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
         ) {
             Text(
-                text = if (cityName != null) "Next Prayer \u2022 $cityName" else "Next Prayer",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.7f),
-            )
-            Text(
                 text = displayName,
-                style = MaterialTheme.typography.headlineLarge,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
-            Text(
-                text = formattedTime,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White.copy(alpha = 0.85f),
-            )
-            if (timeRemaining != null) {
-                CountdownTimer(duration = timeRemaining)
+            if (cityName != null) {
+                Text(
+                    text = cityName,
+                    fontSize = 14.sp,
+                    color = TextMuted,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
-    }
-}
 
-private fun formatPrayerTime(prayerTime: PrayerTime): String {
-    val instant = java.time.Instant.ofEpochMilli(prayerTime.time.toEpochMilliseconds())
-    val zonedTime = instant.atZone(ZoneId.systemDefault())
-    return DateTimeFormatter.ofPattern("hh:mm a").format(zonedTime)
+        if (timeRemaining != null) {
+            val totalMinutes = timeRemaining.inWholeMinutes
+            val hours = totalMinutes / 60
+            val mins = totalMinutes % 60
+            val nextName = prayerTime.prayer.name.lowercase().replaceFirstChar { it.uppercase() }
+            val timeText = when {
+                hours > 0 -> "$hours hr $mins mins left until $nextName"
+                else -> "$mins mins left until $nextName"
+            }
+            Text(
+                text = timeText,
+                fontSize = 14.sp,
+                color = Peach,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(PillBg)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+    }
 }

@@ -2,6 +2,7 @@ package com.prgramed.eprayer.feature.qibla
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.prgramed.eprayer.domain.repository.LocationRepository
 import com.prgramed.eprayer.domain.usecase.GetQiblaDirectionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class QiblaViewModel @Inject constructor(
     private val getQiblaDirectionUseCase: GetQiblaDirectionUseCase,
+    private val locationRepository: LocationRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QiblaUiState())
@@ -22,6 +24,7 @@ class QiblaViewModel @Inject constructor(
 
     init {
         observeQibla()
+        observeCity()
     }
 
     private fun observeQibla() {
@@ -32,12 +35,18 @@ class QiblaViewModel @Inject constructor(
                 }
                 .collect { direction ->
                     _uiState.update {
-                        it.copy(
-                            qiblaDirection = direction,
-                            isLoading = false,
-                            error = null,
-                        )
+                        it.copy(qiblaDirection = direction, isLoading = false, error = null)
                     }
+                }
+        }
+    }
+
+    private fun observeCity() {
+        viewModelScope.launch {
+            locationRepository.getCurrentLocation()
+                .catch { }
+                .collect { location ->
+                    _uiState.update { it.copy(cityName = location.cityName) }
                 }
         }
     }
