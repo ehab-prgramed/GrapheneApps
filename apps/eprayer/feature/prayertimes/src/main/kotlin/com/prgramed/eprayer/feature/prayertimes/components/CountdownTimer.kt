@@ -1,10 +1,13 @@
 package com.prgramed.eprayer.feature.prayertimes.components
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.grapheneapps.core.designsystem.theme.Gold
 import kotlin.time.Duration
 
 @Composable
@@ -20,9 +23,10 @@ fun CountdownTimer(
 
     Text(
         text = formatted,
-        style = MaterialTheme.typography.headlineLarge,
+        fontSize = 32.sp,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
+        fontFamily = FontFamily.Monospace,
+        color = Gold,
         modifier = modifier,
     )
 }

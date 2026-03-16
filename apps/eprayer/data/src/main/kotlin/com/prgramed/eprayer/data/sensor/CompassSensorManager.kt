@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Singleton
 class CompassSensorManager @Inject constructor(
@@ -30,16 +33,17 @@ class CompassSensorManager @Inject constructor(
         val geomagnetic = FloatArray(3)
         var hasGravity = false
         var hasMagnetic = false
+        var smoothedHeading = Float.NaN
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 when (event.sensor.type) {
                     Sensor.TYPE_ACCELEROMETER -> {
-                        lowPassFilter(event.values, gravity)
+                        lowPassFilter(event.values, gravity, SENSOR_ALPHA)
                         hasGravity = true
                     }
                     Sensor.TYPE_MAGNETIC_FIELD -> {
-                        lowPassFilter(event.values, geomagnetic)
+                        lowPassFilter(event.values, geomagnetic, SENSOR_ALPHA)
                         hasMagnetic = true
                     }
                 }
@@ -53,10 +57,16 @@ class CompassSensorManager @Inject constructor(
                     ) {
                         val orientation = FloatArray(3)
                         SensorManager.getOrientation(rotationMatrix, orientation)
-                        val azimuthRadians = orientation[0]
-                        val azimuthDegrees =
-                            ((Math.toDegrees(azimuthRadians.toDouble()) + 360) % 360).toFloat()
-                        trySend(azimuthDegrees)
+                        val rawDegrees =
+                            ((Math.toDegrees(orientation[0].toDouble()) + 360) % 360).toFloat()
+
+                        smoothedHeading = if (smoothedHeading.isNaN()) {
+                            rawDegrees
+                        } else {
+                            circularLerp(smoothedHeading, rawDegrees, HEADING_ALPHA)
+                        }
+
+                        trySend(smoothedHeading)
                     }
                 }
             }
@@ -65,22 +75,31 @@ class CompassSensorManager @Inject constructor(
         }
 
         sensorManager.registerListener(
-            listener, accelerometer, SensorManager.SENSOR_DELAY_UI,
+            listener, accelerometer, SensorManager.SENSOR_DELAY_GAME,
         )
         sensorManager.registerListener(
-            listener, magnetometer, SensorManager.SENSOR_DELAY_UI,
+            listener, magnetometer, SensorManager.SENSOR_DELAY_GAME,
         )
 
         awaitClose { sensorManager.unregisterListener(listener) }
     }
 
-    private fun lowPassFilter(input: FloatArray, output: FloatArray) {
+    private fun lowPassFilter(input: FloatArray, output: FloatArray, alpha: Float) {
         for (i in input.indices) {
-            output[i] = output[i] + ALPHA * (input[i] - output[i])
+            output[i] = output[i] + alpha * (input[i] - output[i])
         }
     }
 
+    private fun circularLerp(from: Float, to: Float, alpha: Float): Float {
+        val fromRad = Math.toRadians(from.toDouble())
+        val toRad = Math.toRadians(to.toDouble())
+        val sinAvg = sin(fromRad) * (1 - alpha) + sin(toRad) * alpha
+        val cosAvg = cos(fromRad) * (1 - alpha) + cos(toRad) * alpha
+        return ((Math.toDegrees(atan2(sinAvg, cosAvg)) + 360) % 360).toFloat()
+    }
+
     companion object {
-        private const val ALPHA = 0.15f
+        private const val SENSOR_ALPHA = 0.06f
+        private const val HEADING_ALPHA = 0.08f
     }
 }

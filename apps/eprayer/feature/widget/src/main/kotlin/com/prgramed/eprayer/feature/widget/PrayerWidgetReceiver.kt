@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.prgramed.eprayer.data.widget.PrayerWidgetWorker
@@ -14,14 +15,19 @@ class PrayerWidgetReceiver : GlanceAppWidgetReceiver() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        scheduleWorker(context)
+        triggerImmediateRefresh(context)
+        schedulePeriodicWorker(context)
     }
 
-    private fun scheduleWorker(context: Context) {
+    private fun triggerImmediateRefresh(context: Context) {
+        val request = OneTimeWorkRequestBuilder<PrayerWidgetWorker>().build()
+        WorkManager.getInstance(context).enqueue(request)
+    }
+
+    private fun schedulePeriodicWorker(context: Context) {
         val workRequest = PeriodicWorkRequestBuilder<PrayerWidgetWorker>(
             30, TimeUnit.MINUTES,
         ).build()
-
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             PrayerWidgetWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,

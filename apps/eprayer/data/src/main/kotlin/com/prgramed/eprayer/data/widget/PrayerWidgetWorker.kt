@@ -39,7 +39,6 @@ class PrayerWidgetWorker @AssistedInject constructor(
                     lat = location.latitude
                     lon = location.longitude
                 } else {
-                    // Fallback to Mecca if no location available
                     lat = 21.4225
                     lon = 39.8262
                 }
@@ -77,8 +76,13 @@ class PrayerWidgetWorker @AssistedInject constructor(
 
         applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_PRAYER_NAME, nextPrayer.first)
-            .putLong(KEY_PRAYER_TIME_MILLIS, nextPrayer.second)
+            .putString(KEY_NEXT_NAME, nextPrayer.first)
+            .putLong(KEY_NEXT_TIME, nextPrayer.second)
+            .putLong(KEY_FAJR, prayers[0].second)
+            .putLong(KEY_DHUHR, prayers[1].second)
+            .putLong(KEY_ASR, prayers[2].second)
+            .putLong(KEY_MAGHRIB, prayers[3].second)
+            .putLong(KEY_ISHA, prayers[4].second)
             .apply()
 
         return Result.success()
@@ -108,8 +112,13 @@ class PrayerWidgetWorker @AssistedInject constructor(
 
     companion object {
         const val PREFS_NAME = "eprayer_widget_data"
-        const val KEY_PRAYER_NAME = "next_prayer_name"
-        const val KEY_PRAYER_TIME_MILLIS = "next_prayer_time_millis"
+        const val KEY_NEXT_NAME = "next_prayer_name"
+        const val KEY_NEXT_TIME = "next_prayer_time_millis"
+        const val KEY_FAJR = "fajr_millis"
+        const val KEY_DHUHR = "dhuhr_millis"
+        const val KEY_ASR = "asr_millis"
+        const val KEY_MAGHRIB = "maghrib_millis"
+        const val KEY_ISHA = "isha_millis"
         const val WORK_NAME = "eprayer_widget_refresh"
     }
 }
