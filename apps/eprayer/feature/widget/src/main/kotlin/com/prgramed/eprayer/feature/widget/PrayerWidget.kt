@@ -1,9 +1,7 @@
 package com.prgramed.eprayer.feature.widget
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.location.LocationManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,19 +27,13 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import com.batoulapps.adhan2.CalculationMethod
-import com.batoulapps.adhan2.Coordinates
-import com.batoulapps.adhan2.PrayerTimes
-import com.batoulapps.adhan2.data.DateComponents
-import com.prgramed.eprayer.data.widget.PrayerWidgetWorker
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Calendar
 
 class PrayerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadData(context)
+        val data = readFromApp(context)
         val launchIntent = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?: Intent()
@@ -53,7 +45,7 @@ class PrayerWidget : GlanceAppWidget() {
                     .cornerRadius(16.dp)
                     .background(BgDark)
                     .clickable(actionStartActivity(launchIntent))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
@@ -134,126 +126,50 @@ class PrayerWidget : GlanceAppWidget() {
         }
     }
 
-    private fun loadData(context: Context): WidgetData {
-        // Try worker cache first — it has correct user prefs (method, madhab, location)
-        val sp = context.getSharedPreferences(
-            PrayerWidgetWorker.PREFS_NAME, Context.MODE_PRIVATE,
-        )
-        val fajrMillis = sp.getLong(PrayerWidgetWorker.KEY_FAJR, 0L)
-        if (fajrMillis != 0L) {
-            return fromCache(sp)
+    private fun readFromApp(context: Context): WidgetData {
+        val sp = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
+
+        val fajrMillis = sp.getLong("fajr_millis", 0L)
+        if (fajrMillis == 0L) {
+            return WidgetData(
+                nextName = "Open app",
+                nextTime = "--:--",
+                prayers = listOf(
+                    PrayerInfo("Fajr", "--:--"),
+                    PrayerInfo("Dhuhr", "--:--"),
+                    PrayerInfo("Asr", "--:--"),
+                    PrayerInfo("Maghrib", "--:--"),
+                    PrayerInfo("Isha", "--:--"),
+                ),
+            )
         }
 
-        // No cache yet — compute with GPS + defaults
-        return computeFallback(context)
-    }
-
-    private fun fromCache(sp: android.content.SharedPreferences): WidgetData {
         val formatter = DateTimeFormatter.ofPattern("HH:mm")
         val zone = ZoneId.systemDefault()
 
         fun fmt(millis: Long): String =
             java.time.Instant.ofEpochMilli(millis).atZone(zone).format(formatter)
 
-        val nowMillis = System.currentTimeMillis()
-        val all = listOf(
-            "Fajr" to sp.getLong(PrayerWidgetWorker.KEY_FAJR, 0L),
-            "Dhuhr" to sp.getLong(PrayerWidgetWorker.KEY_DHUHR, 0L),
-            "Asr" to sp.getLong(PrayerWidgetWorker.KEY_ASR, 0L),
-            "Maghrib" to sp.getLong(PrayerWidgetWorker.KEY_MAGHRIB, 0L),
-            "Isha" to sp.getLong(PrayerWidgetWorker.KEY_ISHA, 0L),
-        )
-        val next = all.firstOrNull { it.second > nowMillis } ?: all.first()
-
-        return WidgetData(
-            nextName = next.first,
-            nextTime = fmt(next.second),
-            prayers = all.map { PrayerInfo(it.first, fmt(it.second)) },
-        )
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun computeFallback(context: Context): WidgetData {
-        // Read worker-stored settings if available
-        val sp = context.getSharedPreferences(
-            PrayerWidgetWorker.PREFS_NAME, Context.MODE_PRIVATE,
-        )
-        val storedLat = sp.getFloat(PrayerWidgetWorker.KEY_LAT, Float.NaN)
-        val storedLon = sp.getFloat(PrayerWidgetWorker.KEY_LON, Float.NaN)
-        val methodName = sp.getString(PrayerWidgetWorker.KEY_CALC_METHOD, null)
-        val madhabName = sp.getString(PrayerWidgetWorker.KEY_MADHAB, null)
-
-        val lat: Double
-        val lon: Double
-        if (!storedLat.isNaN()) {
-            lat = storedLat.toDouble()
-            lon = storedLon.toDouble()
-        } else {
-            val loc = try {
-                val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-                lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            } catch (_: SecurityException) {
-                null
-            }
-            lat = loc?.latitude ?: 21.4225
-            lon = loc?.longitude ?: 39.8262
-        }
-
-        val method = mapMethod(methodName ?: "MUSLIM_WORLD_LEAGUE")
-        val madhab = if (madhabName == "HANAFI") {
-            com.batoulapps.adhan2.Madhab.HANAFI
-        } else {
-            com.batoulapps.adhan2.Madhab.SHAFI
-        }
-
-        val calendar = Calendar.getInstance()
-        val pt = PrayerTimes(
-            Coordinates(lat, lon),
-            DateComponents(
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH) + 1,
-                calendar.get(Calendar.DAY_OF_MONTH),
-            ),
-            method.parameters.copy(madhab = madhab),
-        )
+        val nextName = sp.getString("next_prayer_name", "Fajr") ?: "Fajr"
+        val nextMillis = sp.getLong("next_prayer_time_millis", 0L)
 
         val nowMillis = System.currentTimeMillis()
-        val formatter = DateTimeFormatter.ofPattern("HH:mm")
-        val zone = ZoneId.systemDefault()
-
-        fun fmt(millis: Long): String =
-            java.time.Instant.ofEpochMilli(millis).atZone(zone).format(formatter)
-
         val all = listOf(
-            "Fajr" to pt.fajr.toEpochMilliseconds(),
-            "Dhuhr" to pt.dhuhr.toEpochMilliseconds(),
-            "Asr" to pt.asr.toEpochMilliseconds(),
-            "Maghrib" to pt.maghrib.toEpochMilliseconds(),
-            "Isha" to pt.isha.toEpochMilliseconds(),
+            "Fajr" to sp.getLong("fajr_millis", 0L),
+            "Dhuhr" to sp.getLong("dhuhr_millis", 0L),
+            "Asr" to sp.getLong("asr_millis", 0L),
+            "Maghrib" to sp.getLong("maghrib_millis", 0L),
+            "Isha" to sp.getLong("isha_millis", 0L),
         )
-        val next = all.firstOrNull { it.second > nowMillis } ?: all.first()
+
+        // Recalculate next prayer from the stored times (may have advanced since app wrote)
+        val actualNext = all.firstOrNull { it.second > nowMillis } ?: all.first()
 
         return WidgetData(
-            nextName = next.first,
-            nextTime = fmt(next.second),
+            nextName = actualNext.first,
+            nextTime = fmt(actualNext.second),
             prayers = all.map { PrayerInfo(it.first, fmt(it.second)) },
         )
-    }
-
-    private fun mapMethod(name: String): CalculationMethod = when (name) {
-        "MUSLIM_WORLD_LEAGUE" -> CalculationMethod.MUSLIM_WORLD_LEAGUE
-        "ISNA" -> CalculationMethod.NORTH_AMERICA
-        "EGYPTIAN" -> CalculationMethod.EGYPTIAN
-        "UMM_AL_QURA" -> CalculationMethod.UMM_AL_QURA
-        "KARACHI" -> CalculationMethod.KARACHI
-        "DUBAI" -> CalculationMethod.DUBAI
-        "QATAR" -> CalculationMethod.QATAR
-        "KUWAIT" -> CalculationMethod.KUWAIT
-        "MOONSIGHTING_COMMITTEE" -> CalculationMethod.MOON_SIGHTING_COMMITTEE
-        "SINGAPORE" -> CalculationMethod.SINGAPORE
-        "NORTH_AMERICA" -> CalculationMethod.NORTH_AMERICA
-        else -> CalculationMethod.MUSLIM_WORLD_LEAGUE
     }
 
     private data class WidgetData(
@@ -265,6 +181,7 @@ class PrayerWidget : GlanceAppWidget() {
     private data class PrayerInfo(val name: String, val time: String)
 
     companion object {
+        private const val WIDGET_PREFS = "eprayer_widget_data"
         private val BgDark = Color(0xFF1A2744)
         private val Highlight = Color(0x33FFFFFF)
         private val TextMuted = Color(0xAABFC9D9)

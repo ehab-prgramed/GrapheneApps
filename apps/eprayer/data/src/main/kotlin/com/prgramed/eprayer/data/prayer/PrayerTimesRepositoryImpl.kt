@@ -1,5 +1,6 @@
 package com.prgramed.eprayer.data.prayer
 
+import android.content.Context
 import com.batoulapps.adhan2.CalculationMethod
 import com.batoulapps.adhan2.Coordinates
 import com.batoulapps.adhan2.Madhab
@@ -13,6 +14,7 @@ import com.prgramed.eprayer.domain.model.PrayerTime
 import com.prgramed.eprayer.domain.repository.LocationRepository
 import com.prgramed.eprayer.domain.repository.PrayerTimesRepository
 import com.prgramed.eprayer.domain.repository.UserPreferencesRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -24,6 +26,7 @@ import javax.inject.Singleton
 class PrayerTimesRepositoryImpl @Inject constructor(
     private val locationRepository: LocationRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    @param:ApplicationContext private val context: Context,
 ) : PrayerTimesRepository {
 
     override fun getPrayerTimes(date: LocalDate): Flow<PrayerDay> =
@@ -67,14 +70,40 @@ class PrayerTimesRepositoryImpl @Inject constructor(
             }
 
             val nextPrayer = markedTimes.firstOrNull { it.isNext }
+            val prayerDay = PrayerDay(date = date, times = markedTimes, nextPrayer = nextPrayer)
 
-            PrayerDay(date = date, times = markedTimes, nextPrayer = nextPrayer)
+            // Write to SharedPreferences so the widget reads the exact same times
+            cacheForWidget(prayerDay)
+
+            prayerDay
         }
 
     override fun getNextPrayer(): Flow<PrayerTime?> {
         val javaToday = java.time.LocalDate.now()
         val today = LocalDate(javaToday.year, javaToday.monthValue, javaToday.dayOfMonth)
         return getPrayerTimes(today).map { it.nextPrayer }
+    }
+
+    private fun cacheForWidget(prayerDay: PrayerDay) {
+        val times = prayerDay.times
+        val fajr = times.firstOrNull { it.prayer == Prayer.FAJR }
+        val dhuhr = times.firstOrNull { it.prayer == Prayer.DHUHR }
+        val asr = times.firstOrNull { it.prayer == Prayer.ASR }
+        val maghrib = times.firstOrNull { it.prayer == Prayer.MAGHRIB }
+        val isha = times.firstOrNull { it.prayer == Prayer.ISHA }
+        val next = prayerDay.nextPrayer
+
+        context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putLong("fajr_millis", fajr?.time?.toEpochMilliseconds() ?: 0L)
+            .putLong("dhuhr_millis", dhuhr?.time?.toEpochMilliseconds() ?: 0L)
+            .putLong("asr_millis", asr?.time?.toEpochMilliseconds() ?: 0L)
+            .putLong("maghrib_millis", maghrib?.time?.toEpochMilliseconds() ?: 0L)
+            .putLong("isha_millis", isha?.time?.toEpochMilliseconds() ?: 0L)
+            .putString("next_prayer_name", next?.prayer?.name?.lowercase()
+                ?.replaceFirstChar { it.uppercase() } ?: "Fajr")
+            .putLong("next_prayer_time_millis", next?.time?.toEpochMilliseconds() ?: 0L)
+            .apply()
     }
 
     private fun mapCalculationMethod(type: CalculationMethodType): CalculationMethod =
@@ -98,4 +127,8 @@ class PrayerTimesRepositoryImpl @Inject constructor(
             MadhabType.SHAFI -> Madhab.SHAFI
             MadhabType.HANAFI -> Madhab.HANAFI
         }
+
+    companion object {
+        const val WIDGET_PREFS = "eprayer_widget_data"
+    }
 }
