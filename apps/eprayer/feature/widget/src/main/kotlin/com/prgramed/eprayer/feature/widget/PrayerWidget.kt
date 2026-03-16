@@ -22,6 +22,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
@@ -50,7 +51,8 @@ class PrayerWidget : GlanceAppWidget() {
             ) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Bottom,
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = data.nextName,
@@ -60,7 +62,7 @@ class PrayerWidget : GlanceAppWidget() {
                             color = ColorProvider(Color.White),
                         ),
                     )
-                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Spacer(modifier = GlanceModifier.width(16.dp))
                     Text(
                         text = data.nextTime,
                         style = TextStyle(
